@@ -4,7 +4,7 @@ class Urls {
   static const String _baseUrl = 'https://task.teamrabbil.com/api/v1';
   static String registration = '$_baseUrl/registration';
   static String login = '$_baseUrl/login';
-  static String updateProfile = '$_baseUrl/profileUpdate';
+  static String profileUpdate = '$_baseUrl/profileUpdate';
   static String resetPassword = '$_baseUrl/RecoverResetPass';
   static String createTask = '$_baseUrl/createTask';
   static String taskStatusCount = '$_baseUrl/taskStatusCount';

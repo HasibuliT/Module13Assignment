@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:task_manager/data/models/auth_utility.dart';
 import 'package:task_manager/ui/screen/auth/login_screen.dart';
 import 'package:task_manager/ui/screen/update_profile_screen.dart';
@@ -71,10 +72,7 @@ class _UserProfileAppBarState extends State<UserProfileAppBar> {
           onPressed: () async {
             await AuthUtility.clearUserInfo();
             if (mounted) {
-              Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (route) => false);
+              Get.offAll(LoginScreen);
             }
           },
           icon: const Icon(Icons.logout),

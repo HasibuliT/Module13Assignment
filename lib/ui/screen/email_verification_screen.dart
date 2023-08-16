@@ -1,56 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:task_manager/data/models/network_response.dart';
-import 'package:task_manager/data/services/network_caller.dart';
-import 'package:task_manager/data/utils/urls.dart';
+import 'package:get/get.dart';
 import 'package:task_manager/ui/screen/auth/otp_verification_screen.dart';
+import 'package:task_manager/ui/state_managers/email_verification_controller.dart';
 import 'package:task_manager/ui/widgets/screen-background.dart';
 
-class EmailVerificationScreen extends StatefulWidget {
-  const EmailVerificationScreen({Key? key}) : super(key: key);
+class EmailVerificationScreen extends StatelessWidget {
+  EmailVerificationScreen({Key? key}) : super(key: key);
 
-  @override
-  State<EmailVerificationScreen> createState() =>
-      _EmailVerificationScreenState();
-}
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
-  bool _emailVerficatinInProgress = false;
   final TextEditingController _emailTEController = TextEditingController();
-
-  Future<void> sendOTPToEmail() async {
-    _emailVerficatinInProgress = true;
-    if (mounted) {
-      setState(() {});
-    }
-    final NetworkResponse response = await NetworkCaller()
-        .getRequest(Urls.sendOtpToEmail(_emailTEController.text.trim()));
-    _emailVerficatinInProgress = false;
-    if (mounted) {
-      setState(() {});
-    }
-    if (response.isSuccess) {
-      if (mounted) {
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => OtpVerificationScreen(
-                  email: _emailTEController.text.trim(),
-                )));
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Email verification has been failed!')));
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ScreenBackground(
-        child: SingleChildScrollView(
-          child: SafeArea(
+      body: SafeArea(
+        child: ScreenBackground(
+          child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -75,29 +41,72 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   const SizedBox(
                     height: 24,
                   ),
-                  TextField(
-                    controller: _emailTEController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      hintText: 'Email',
+                  Form(
+                    key: _formKey,
+                    child: TextFormField(
+                      controller: _emailTEController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        hintText: 'Your Email',
+                        labelText: 'Your Email',
+                      ),
+                      validator: (String? value) {
+                        if (value?.isEmpty ?? true) {
+                          return 'Enter your valid email';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(
                     height: 16,
                   ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Visibility(
-                      visible: _emailVerficatinInProgress == false,
-                      replacement: const Center(child: CircularProgressIndicator(),),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          sendOTPToEmail();
-                        },
-                        child: const Icon(Icons.arrow_circle_right_outlined),
-                      ),
-                    ),
-                  ),
+                  GetBuilder<EmailVerificationController>(
+                      builder: (emailVerificationController) {
+                        return SizedBox(
+                          width: double.infinity,
+                          child: Visibility(
+                            visible: emailVerificationController
+                                .emailVerificationInProgress ==
+                                false,
+                            replacement: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                if (!_formKey.currentState!.validate()) {
+                                  return;
+                                }
+                                emailVerificationController
+                                    .sendOTPToEmail(_emailTEController.text.trim())
+                                    .then((value) {
+                                  if (value) {
+                                    Get.snackbar(
+                                      'Success',
+                                      'Email verification successful!',
+                                      backgroundColor: Colors.green,
+                                      colorText: Colors.white,
+                                      borderRadius: 10,
+                                    );
+                                    Get.to(() => OtpVerificationScreen(
+                                      email: _emailTEController.text.trim(),
+                                    ));
+                                  } else {
+                                    Get.snackbar(
+                                      'Failed',
+                                      'Email verification has been failed!',
+                                      backgroundColor: Colors.red,
+                                      colorText: Colors.white,
+                                      borderRadius: 10,
+                                    );
+                                  }
+                                });
+                              },
+                              child: const Icon(Icons.arrow_circle_right_outlined),
+                            ),
+                          ),
+                        );
+                      }),
                   const SizedBox(
                     height: 16,
                   ),

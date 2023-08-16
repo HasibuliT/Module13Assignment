@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
-
 import 'package:http/http.dart';
 import 'package:task_manager/app.dart';
 import 'package:task_manager/data/models/auth_utility.dart';
@@ -11,12 +10,12 @@ import 'package:task_manager/ui/screen/auth/login_screen.dart';
 class NetworkCaller {
   Future<NetworkResponse> getRequest(String url) async {
     try {
-      log(url);
       Response response = await get(Uri.parse(url),
           headers: {'token': AuthUtility.userInfo.token.toString()});
       log(response.statusCode.toString());
       log(response.body);
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 &&
+          jsonDecode(response.body)['status'] == 'success') {
         return NetworkResponse(
             true, response.statusCode, jsonDecode(response.body));
       } else if (response.statusCode == 401) {
@@ -33,7 +32,6 @@ class NetworkCaller {
   Future<NetworkResponse> postRequest(String url, Map<String, dynamic> body,
       {bool isLogin = false}) async {
     try {
-      log(body.toString());
       Response response = await post(
         Uri.parse(url),
         headers: {
@@ -44,7 +42,8 @@ class NetworkCaller {
       );
       log(response.statusCode.toString());
       log(response.body);
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 &&
+          jsonDecode(response.body)['status'] == 'success') {
         return NetworkResponse(
           true,
           response.statusCode,
@@ -67,7 +66,7 @@ class NetworkCaller {
     await AuthUtility.clearUserInfo();
     Navigator.pushAndRemoveUntil(
         TaskManagerApp.globalKey.currentContext!,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => LoginScreen()),
             (route) => false);
   }
 }

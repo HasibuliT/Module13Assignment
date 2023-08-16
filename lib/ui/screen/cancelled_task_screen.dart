@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:task_manager/data/models/network_response.dart';
+import 'package:get/get.dart';
 import 'package:task_manager/data/models/task_list_model.dart';
-import 'package:task_manager/data/services/network_caller.dart';
 import 'package:task_manager/data/utils/urls.dart';
 import 'package:task_manager/ui/screen/update_task_status_sheet.dart';
+import 'package:task_manager/ui/state_managers/delete_task_controller.dart';
+import 'package:task_manager/ui/state_managers/get_task_controller.dart';
 import 'package:task_manager/ui/widgets/screen-background.dart';
 import 'package:task_manager/ui/widgets/task_list_tile.dart';
 import 'package:task_manager/ui/widgets/user_profile_banner.dart';
@@ -16,55 +17,26 @@ class CancelledTaskScreen extends StatefulWidget {
 }
 
 class _CancelledTaskScreenState extends State<CancelledTaskScreen> {
-  bool _getCancelledTasksInProgress = false;
-  TaskListModel _taskListModel = TaskListModel();
-
-  Future<void> getCancelledTasks() async {
-    _getCancelledTasksInProgress = true;
-    if (mounted) {
-      setState(() {});
-    }
-    final NetworkResponse response =
-    await NetworkCaller().getRequest(Urls.cancelledTasks);
-    if (response.isSuccess && response.statusCode==200) {
-      _taskListModel = TaskListModel.fromJson(response.body!);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cancelled tasks get failed')));
-      }
-    }
-    _getCancelledTasksInProgress = false;
-    if (mounted) {
-      setState(() {});
-    }
-  }
+  final GetTasksController _getTasksController = Get.find<GetTasksController>();
+  final DeleteTaskController _deleteTaskController =
+  Get.find<DeleteTaskController>();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      getCancelledTasks();
+      _getTasksController.getTasks(Urls.cancelledTasks).then((value) {
+        if (value == false) {
+          Get.snackbar(
+            'Failed',
+            'Cancelled task data get failed!',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+            borderRadius: 10,
+          );
+        }
+      });
     });
-  }
-
-  Future<void> deleteTask(String taskId) async {
-    final NetworkResponse response =
-    await NetworkCaller().getRequest(Urls.deleteTask(taskId));
-    if (response.isSuccess && response.statusCode==200) {
-      _taskListModel.data!.removeWhere((element) => element.sId == taskId);
-      if (mounted) {
-        setState(() {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Deletion successful!')));
-        });
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Deletion of task has been failed')));
-      }
-    }
   }
 
   void showStatusUpdateBottomSheet(TaskData task) {
@@ -75,7 +47,8 @@ class _CancelledTaskScreenState extends State<CancelledTaskScreen> {
         return UpdateTaskStatusSheet(
             task: task,
             onUpdate: () {
-              getCancelledTasks();
+              Get.back();
+              _getTasksController.getTasks(Urls.cancelledTasks);
             });
       },
     );
@@ -90,29 +63,36 @@ class _CancelledTaskScreenState extends State<CancelledTaskScreen> {
             children: [
               const UserProfileAppBar(),
               Expanded(
-                child: _getCancelledTasksInProgress
-                    ? const Center(
-                  child: CircularProgressIndicator(),
-                )
-                    : ListView.separated(
-                  itemCount: _taskListModel.data?.length ?? 0,
-                  itemBuilder: (context, index) {
-                    return TaskListTile(
-                      data: _taskListModel.data![index],
-                      onDeleteTap: () {
-                        deleteAlertDialogue(index);
-                      },
-                      onEditTap: () {
-                        editAlertDialogue(index);
-                      },
-                    );
-                  },
-                  separatorBuilder: (BuildContext context, int index) {
-                    return const Divider(
-                      height: 4,
-                    );
-                  },
-                ),
+                child: GetBuilder<GetTasksController>(
+                    builder: (getTasksController) {
+                      return getTasksController.getTaskInProgress
+                          ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                          : ListView.separated(
+                        itemCount:
+                        getTasksController.taskListModel.data?.length ??
+                            0,
+                        itemBuilder: (context, index) {
+                          return TaskListTile(
+                            data:
+                            getTasksController.taskListModel.data![index],
+                            onDeleteTap: () {
+                              deleteAlertDialogue(index);
+                              //deleteTask(_taskListModel.data![index].sId!);
+                            },
+                            onEditTap: () {
+                              editAlertDialogue(index);
+                            },
+                          );
+                        },
+                        separatorBuilder: (BuildContext context, int index) {
+                          return const Divider(
+                            height: 4,
+                          );
+                        },
+                      );
+                    }),
               ),
             ],
           ),
@@ -122,35 +102,54 @@ class _CancelledTaskScreenState extends State<CancelledTaskScreen> {
   }
 
   void deleteAlertDialogue(int index) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
+    Get.dialog(
+      AlertDialog(
         title: const Text(
-          "Alert",
+          'Delete Alert',
           style: TextStyle(
             color: Colors.red,
             fontWeight: FontWeight.bold,
-            // Set the title text color here
           ),
         ),
         content: const Text(
           "Are you want to delete this item?",
           style: TextStyle(
-            color: Colors.black, // Set the content text color here
+            color: Colors.black,
           ),
         ),
-        backgroundColor: Colors.white,
-        actions: [
+        actions: <Widget>[
           TextButton(
             onPressed: () {
-              Navigator.of(ctx).pop();
+              Get.back();
             },
             child: const Text('No'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(ctx).pop();
-              deleteTask(_taskListModel.data![index].sId!);
+              Get.back();
+              _deleteTaskController
+                  .deleteTask(
+                  _getTasksController.taskListModel.data![index].sId!)
+                  .then((value) {
+                _getTasksController.getUpdateState();
+                if (value) {
+                  Get.snackbar(
+                    'Success',
+                    'Task deletion successful!',
+                    backgroundColor: Colors.green,
+                    colorText: Colors.white,
+                    borderRadius: 10,
+                  );
+                } else {
+                  Get.snackbar(
+                    'Failed',
+                    'Task deletion failed!',
+                    backgroundColor: Colors.red,
+                    colorText: Colors.white,
+                    borderRadius: 10,
+                  );
+                }
+              });
             },
             child: const Text('Yes'),
           ),
@@ -160,35 +159,33 @@ class _CancelledTaskScreenState extends State<CancelledTaskScreen> {
   }
 
   void editAlertDialogue(int index) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
+    Get.dialog(
+      AlertDialog(
         title: const Text(
-          "Alert",
+          'Edit Alert',
           style: TextStyle(
             color: Colors.red,
             fontWeight: FontWeight.bold,
-            // Set the title text color here
           ),
         ),
         content: const Text(
           "Are you want to edit status of this item?",
           style: TextStyle(
-            color: Colors.black, // Set the content text color here
+            color: Colors.black,
           ),
         ),
-        backgroundColor: Colors.white,
-        actions: [
+        actions: <Widget>[
           TextButton(
             onPressed: () {
-              Navigator.of(ctx).pop();
+              Get.back();
             },
             child: const Text('No'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(ctx).pop();
-              showStatusUpdateBottomSheet(_taskListModel.data![index]);
+              Get.back();
+              showStatusUpdateBottomSheet(
+                  _getTasksController.taskListModel.data![index]);
             },
             child: const Text('Yes'),
           ),

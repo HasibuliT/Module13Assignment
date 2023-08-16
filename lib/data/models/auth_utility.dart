@@ -4,6 +4,7 @@ import 'package:task_manager/data/models/login_model.dart';
 
 class AuthUtility {
   AuthUtility._();
+
   static LoginModel userInfo = LoginModel();
 
   static Future<void> saveUserInfo(LoginModel model) async {
